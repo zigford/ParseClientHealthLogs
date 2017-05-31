@@ -1,6 +1,12 @@
 function Get-ClientHealthLogs {
+    <#
+
+
+    #>
 [CmdLetBinding()]
-Param($Path="C:\Jesse\Logs")
+Param(
+    [Parameter(Mandatory=$True)]$Path
+)
 
     $Logs = Get-ChildItem -Path $Path -Recurse -Filter *.log
     Write-Verbose "$($Logs.Count) logs found"
