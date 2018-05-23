@@ -34,16 +34,30 @@ Param(
             $_ -match '^(?<key>\w{1,}):\s(?<value>.*$)' | Out-Null
             If ($Matches) {
                 Write-Verbose "Found match on $($Matches['key'])" 
-                If ('Timestamp','LastBootTime','OSUpdates','InstallDate' -contains $Matches['key']) {
-                    $Value = Cts $Matches['value']
+                If ('Timestamp','LastBootTime','OSUpdates','InstallDate','RefreshComplianceState','HWInventory' -contains $Matches['key']) {
+                    $Value = Convert-Timestamp -Timestamp $Matches['value']
                 } Else {
                     $Value = $Matches['value']
                 }
-                $LogObject | Add-Member `
-                    -MemberType NoteProperty `
-                    -Name $Matches['key'] `
-                    -Value $Value -Force
-                If ($Matches['key'] -eq 'Timestamp') {
+                Try {
+                    $LogObject | Add-Member `
+                        -MemberType NoteProperty `
+                        -Name $Matches['key'] `
+                        -Value $Value -Force
+                } catch {
+                    # no match on key
+                }
+                If ($Matches['key'] -eq 'Version') {
+                    # Different Client Health script log files end with different
+                    # Key's at the end. This will setup the correct one depernding
+                    # on the version indicated in the log
+                    $EndKey = Switch ($Value) {
+                        0.7.6 {'ClientInstalledReason'}
+                        Default {'Timestamp'}
+                    }
+                }
+                If ($EndKey -and $Matches['key'] -eq $EndKey ) {
+                    Write-Verbose "End record in log reached at $EndKey"
                     $AllPCLog+=$LogObject 
                     $LogObject = New-Object -TypeName psobject
                     $Matches = $null
@@ -99,7 +113,7 @@ function Get-RepairedMachines {
 
 }
 
-function Cts {
+function Convert-Timestamp {
     <#Convert Timestamp#>
     Param($Timestamp)
     Write-Verbose "Parsing timestamp $Timestamp" 
